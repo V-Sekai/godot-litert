@@ -1,0 +1,33 @@
+diff --git a/thirdparty/litert/tflite/CMakeLists.txt b/thirdparty/litert/tflite/CMakeLists.txt
+index 1249b5c01e3..e2a77336cde 100644
+--- a/thirdparty/litert/tflite/CMakeLists.txt
++++ b/thirdparty/litert/tflite/CMakeLists.txt
+@@ -40,14 +40,24 @@ cmake_policy(SET CMP0042 NEW)
+ project(tensorflow-lite C CXX)
+ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ 
+-# Use FetchContent to download TensorFlow if not provided
+-include(FetchContent)
+-
++# Use git subrepo TensorFlow if available, otherwise use FetchContent
+ set(TENSORFLOW_SOURCE_DIR "" CACHE PATH
+   "Directory that contains the TensorFlow project"
+ )
++
++# Check for git subrepo TensorFlow first
++if(NOT TENSORFLOW_SOURCE_DIR)
++  set(_tensorflow_subrepo_path "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/tensorflow")
++  if(EXISTS "${_tensorflow_subrepo_path}/.git" OR EXISTS "${_tensorflow_subrepo_path}/tensorflow")
++    set(TENSORFLOW_SOURCE_DIR "${_tensorflow_subrepo_path}")
++    message(STATUS "Using TensorFlow from git subrepo: ${TENSORFLOW_SOURCE_DIR}")
++  endif()
++endif()
++
++# Fallback to FetchContent if git subrepo not found
+ if(NOT TENSORFLOW_SOURCE_DIR)
+-  message(STATUS "Downloading TensorFlow repository...")
++  include(FetchContent)
++  message(STATUS "Downloading TensorFlow repository via FetchContent...")
+   FetchContent_Declare(
+     tensorflow
+     GIT_REPOSITORY https://github.com/tensorflow/tensorflow.git

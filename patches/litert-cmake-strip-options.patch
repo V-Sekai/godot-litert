@@ -1,0 +1,39 @@
+diff --git a/thirdparty/litert/litert/CMakeLists.txt b/thirdparty/litert/litert/CMakeLists.txt
+index b7ca0234ec2..728854e1934 100644
+--- a/thirdparty/litert/litert/CMakeLists.txt
++++ b/thirdparty/litert/litert/CMakeLists.txt
+@@ -169,12 +169,30 @@ if(NOT EXISTS "${TFLITE_BUILD_DIR}/libtensorflow-lite.a")
+ 
+           list(APPEND _tflite_extra_args -DTFLITE_HOST_TOOLS_DIR=${TFLITE_HOST_TOOLS_DIR})
+         endif()
++        # Configure TFLite with minimal options for faster build
++        # Invert LITERT_DISABLE_XNNPACK (ON -> OFF, OFF -> ON)
++        if(LITERT_DISABLE_XNNPACK)
++            set(_tflite_xnnpack OFF)
++        else()
++            set(_tflite_xnnpack ON)
++        endif()
++        set(_tflite_config_args
++            -DTFLITE_ENABLE_XNNPACK=${_tflite_xnnpack}
++            -DTFLITE_ENABLE_GPU=${LITERT_ENABLE_GPU}
++            -DTFLITE_ENABLE_NNAPI=OFF
++            -DTFLITE_ENABLE_RUY=OFF
++            -DTFLITE_ENABLE_RESOURCE=OFF
++            -DTFLITE_ENABLE_EXTERNAL_DELEGATE=OFF
++            -DTFLITE_ENABLE_MMAP=OFF
++            -DTFLITE_ENABLE_LABEL_IMAGE=OFF
++            -DTFLITE_ENABLE_BENCHMARK_MODEL=OFF
++            -DTFLITE_KERNEL_TEST=OFF
++            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
++            ${_tflite_extra_args}
++        )
+         execute_process(
+             COMMAND ${CMAKE_COMMAND} "${TFLITE_SOURCE_DIR}"
+-                -DTFLITE_ENABLE_XNNPACK=ON
+-                -DTFLITE_ENABLE_GPU=ON
+-                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+-                ${_tflite_extra_args}
++                ${_tflite_config_args}
+             WORKING_DIRECTORY "${TFLITE_BUILD_DIR}"
+             RESULT_VARIABLE TFLITE_CONFIGURE_RESULT
+             OUTPUT_VARIABLE TFLITE_CONFIGURE_OUTPUT

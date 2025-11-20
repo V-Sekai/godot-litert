@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/tensorflow/tensorflow.git
+	branch = v2.19.0
+	commit = e36baa302922ea3c7131b302c2996bd2051ee5c4
+	parent = 803b153c5edd5929b5d46b06e5b60d94d22dfd08
+	method = merge
+	cmdver = 0.4.9
