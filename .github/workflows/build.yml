@@ -1,0 +1,233 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up cache keys
+        id: cache-keys
+        run: |
+          CACHE_RESTORE_KEY_1="${{ runner.os }}-cmake-build"
+          CACHE_RESTORE_KEY_0="$CACHE_RESTORE_KEY_1-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt', '**/*.cmake', '.gitmodules') }}"
+          CACHE_RESTORE_KEY_HEAD="$CACHE_RESTORE_KEY_0-${{ github.event.pull_request.base.sha }}"
+          CACHE_KEY="$CACHE_RESTORE_KEY_0-${{ github.sha }}"
+          echo "CACHE_RESTORE_KEY_1=$CACHE_RESTORE_KEY_1" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_0=$CACHE_RESTORE_KEY_0" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_HEAD=$CACHE_RESTORE_KEY_HEAD" >> "$GITHUB_OUTPUT"
+          echo "CACHE_KEY=$CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore CMake cache
+        id: cmake-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+          restore-keys: |
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_HEAD }}
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_0 }}-
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_1 }}-
+
+      - name: Check cache hit
+        run: |
+          echo "Cache Hit: ${{ steps.cmake-cache.outputs.cache-hit }}"
+          echo "Cache Primary Key: ${{ steps.cmake-cache.outputs.cache-primary-key }}"
+          echo "Cache Matched Key: ${{ steps.cmake-cache.outputs.cache-matched-key }}"
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DLITERT_DISABLE_XNNPACK=ON
+
+      - name: Build
+        run: |
+          cmake --build build -j$(sysctl -n hw.ncpu)
+
+      - name: Check artifacts
+        run: |
+          ls -lh build/bin/macos/ || true
+          find build/bin -name "*.dylib" -o -name "*.so" -o -name "*.dll" || true
+
+      - name: Save CMake cache
+        uses: actions/cache/save@v4
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      - name: Set up cache keys
+        id: cache-keys
+        run: |
+          CACHE_RESTORE_KEY_1="${{ runner.os }}-cmake-build"
+          CACHE_RESTORE_KEY_0="$CACHE_RESTORE_KEY_1-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt', '**/*.cmake', '.gitmodules') }}"
+          CACHE_RESTORE_KEY_HEAD="$CACHE_RESTORE_KEY_0-${{ github.event.pull_request.base.sha }}"
+          CACHE_KEY="$CACHE_RESTORE_KEY_0-${{ github.sha }}"
+          echo "CACHE_RESTORE_KEY_1=$CACHE_RESTORE_KEY_1" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_0=$CACHE_RESTORE_KEY_0" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_HEAD=$CACHE_RESTORE_KEY_HEAD" >> "$GITHUB_OUTPUT"
+          echo "CACHE_KEY=$CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore CMake cache
+        id: cmake-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+          restore-keys: |
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_HEAD }}
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_0 }}-
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_1 }}-
+
+      - name: Check cache hit
+        run: |
+          echo "Cache Hit: ${{ steps.cmake-cache.outputs.cache-hit }}"
+          echo "Cache Primary Key: ${{ steps.cmake-cache.outputs.cache-primary-key }}"
+          echo "Cache Matched Key: ${{ steps.cmake-cache.outputs.cache-matched-key }}"
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DLITERT_DISABLE_XNNPACK=ON
+
+      - name: Build
+        run: |
+          cmake --build build -j$(nproc)
+
+      - name: Check artifacts
+        run: |
+          ls -lh build/bin/x11/ || true
+          find build/bin -name "*.dylib" -o -name "*.so" -o -name "*.dll" || true
+
+      - name: Save CMake cache
+        uses: actions/cache/save@v4
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Initialize submodules
+        run: |
+          git submodule update --init --recursive --depth 1
+
+      - name: Verify submodules
+        run: |
+          echo "Checking submodule status:"
+          git submodule status
+          echo "Checking thirdparty/litert:"
+          if (Test-Path thirdparty/litert) { Get-ChildItem thirdparty/litert } else { echo "thirdparty/litert does not exist" }
+          echo "Checking thirdparty/litert/litert:"
+          if (Test-Path thirdparty/litert/litert) { Get-ChildItem thirdparty/litert/litert } else { echo "thirdparty/litert/litert does not exist" }
+
+      - name: Set up cache keys
+        id: cache-keys
+        shell: bash
+        run: |
+          CACHE_RESTORE_KEY_1="${{ runner.os }}-cmake-build"
+          CACHE_RESTORE_KEY_0="$CACHE_RESTORE_KEY_1-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt', '**/*.cmake', '.gitmodules') }}"
+          CACHE_RESTORE_KEY_HEAD="$CACHE_RESTORE_KEY_0-${{ github.event.pull_request.base.sha }}"
+          CACHE_KEY="$CACHE_RESTORE_KEY_0-${{ github.sha }}"
+          echo "CACHE_RESTORE_KEY_1=$CACHE_RESTORE_KEY_1" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_0=$CACHE_RESTORE_KEY_0" >> "$GITHUB_OUTPUT"
+          echo "CACHE_RESTORE_KEY_HEAD=$CACHE_RESTORE_KEY_HEAD" >> "$GITHUB_OUTPUT"
+          echo "CACHE_KEY=$CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore CMake cache
+        id: cmake-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+          restore-keys: |
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_HEAD }}
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_0 }}-
+            ${{ steps.cache-keys.outputs.CACHE_RESTORE_KEY_1 }}-
+
+      - name: Check cache hit
+        run: |
+          echo "Cache Hit: ${{ steps.cmake-cache.outputs.cache-hit }}"
+          echo "Cache Primary Key: ${{ steps.cmake-cache.outputs.cache-primary-key }}"
+          echo "Cache Matched Key: ${{ steps.cmake-cache.outputs.cache-matched-key }}"
+
+      - name: Configure CMake for Windows
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -A x64 `
+            -DLITERT_AUTO_BUILD_TFLITE=ON `
+            -DLITERT_DISABLE_XNNPACK=ON `
+            -DPython3_EXECUTABLE="${{ env.pythonLocation }}/python.exe"
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Check artifacts
+        run: |
+          if (Test-Path build/bin/win64) { Get-ChildItem build/bin/win64 } else { echo "build/bin/win64 does not exist" }
+          Get-ChildItem -Recurse build/bin -Include *.dll,*.lib,*.a | Select-Object FullName
+
+      - name: Save CMake cache
+        uses: actions/cache/save@v4
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            build
+            host_flatc_build
+          key: ${{ steps.cache-keys.outputs.CACHE_KEY }}
+

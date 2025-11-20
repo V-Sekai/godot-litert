@@ -1,41 +1,97 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
+# Build directories
+build/
+bin/
 *.dylib
+*.so
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
 *.a
 *.lib
+*.framework
 
-# Executables
+# CMake (only for LiteRT - root and godot-cpp now use Bazel)
+# Note: LiteRT still uses CMake, so we keep some CMake ignores
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CMakeConfigureLog.yaml
+CTestTestfile.cmake
+_deps/
+
+# Bazel
+bazel-*
+.bazelrc.user
+MODULE.bazel
+MODULE.bazel.lock
+
+# Generated files
+*.gen.*
+gen/
+*.gen.h
+*.gen.cpp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.pyc
+
+# Compiled files
+*.o
+*.obj
+*.os
+*.o.tmp
 *.exe
 *.out
-*.app
+*.dblite
 
-# debug information files
-*.dwo
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Godot specific
+.godot/
+*.import
+
+# Thirdparty build artifacts (keep submodules, ignore builds)
+thirdparty/*/build/
+thirdparty/*/bin/
+thirdparty/godot-cpp/gen/
+thirdparty/godot-cpp/bin/
+
+# Keep submodule directories but ignore their builds
+!thirdparty/godot-cpp/
+
+# Scripts output
+scripts/*.log
+
+# Build test directories
+build-test*/
+build-litert.log
+
+# Git subrepo metadata (keep patches, ignore .gitrepo files)
+**/.gitrepo
+
+# Patches directory (keep patch files, ignore temporary files)
+patches/*.tmp
+patches/*.bak
+
+# Unused wrapper script (replaced by custom Starlark rule)
+thirdparty/godot-cpp/binding_generator_wrapper.sh

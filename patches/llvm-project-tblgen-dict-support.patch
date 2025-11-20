@@ -1,0 +1,47 @@
+diff --git a/utils/bazel/llvm-project-overlay/mlir/tblgen.bzl b/utils/bazel/llvm-project-overlay/mlir/tblgen.bzl
+index 0000000..1111111 100644
+--- a/utils/bazel/llvm-project-overlay/mlir/tblgen.bzl
++++ b/utils/bazel/llvm-project-overlay/mlir/tblgen.bzl
+@@ -333,7 +333,35 @@ def gentbl_filegroup(
+       **kwargs: Extra keyword arguments to pass to all generated rules.
+     """
+ 
+-    for (opts, out) in tbl_outs:
++    # tbl_outs can be either a dict {out: [opts]} or a list of tuples [(opts, out)]
++    # Handle both formats for compatibility
++    if type(tbl_outs) == type({}):
++        # Dictionary format: iterate over items
++        for (out, opts) in tbl_outs.items():
++            first_opt = opts[0] if opts else ""
++            rule_suffix = "_{}_{}".format(
++                first_opt.replace("-", "_").replace("=", "_"),
++                str(hash(" ".join(opts))),
++            )
++            gentbl_name = "%s_%s_genrule" % (name, rule_suffix)
++            gentbl_rule(
++                name = gentbl_name,
++                td_file = td_file,
++                tblgen = tblgen,
++                opts = opts,
++                td_srcs = td_srcs,
++                deps = deps,
++                includes = includes,
++                out = out,
++                **kwargs
++            )
++    else:
++        # List of tuples format: original behavior
++        for (opts, out) in tbl_outs:
+             first_opt = opts[0] if opts else ""
+             rule_suffix = "_{}_{}".format(
+                 first_opt.replace("-", "_").replace("=", "_"),
+@@ -345,6 +373,8 @@ def gentbl_filegroup(
+                 td_file = td_file,
+                 tblgen = tblgen,
+                 opts = opts,
+                 td_srcs = td_srcs,
+                 deps = deps,
++                includes = includes,
+                 out = out,
+                 **kwargs
+             )
